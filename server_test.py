@@ -11,9 +11,19 @@ from datetime import datetime
 app = Flask(__name__)
 
 def get_db_connection():
-    conn = sqlite3.connect('face_recognition.db') # db 서버 주소 
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        # 데이터베이스 연결 설정
+        connection = mysql.connector.connect(
+            host="49.247.171.103",       # MySQL 서버 주소
+            user="user",   # 사용자 이름
+            password="qwer0505",  # 비밀번호
+            database="tf2"   # 연결할 데이터베이스 이름
+        )
+        
+        if connection.is_connected():
+            return connection
+    except Error as e:
+        return None
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -47,7 +57,8 @@ def upload():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT person_id, name FROM users WHERE image_path = ?", (image_path,))
+        query = f"SELECT name FROM people WHERE face_info = '{image_path}'"
+        cursor.execute(query)
         user = cursor.fetchone()
         conn.close()
         
@@ -61,8 +72,8 @@ def upload():
             return jsonify({"message": f"No matching user found. Saved image as {unknown_file_name}"}), 404
         
     else:
-        log_access("Unknown", success=0)
-        return jsonify({"message": "No matches found."}), 404
+        unknown_file_name = save_unknown_image(img, camera)
+        return jsonify({"message": f"No matching user found. Saved image as {unknown_file_name}"}), 404
 
 # user 있을 시 유저 id, 시간 기록
 def log_access(id, success, cam_id):
@@ -71,11 +82,14 @@ def log_access(id, success, cam_id):
     
     access_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if cam_id == "front":
-        cursor.execute("INSERT INTO access_logs (person_id, entry_time) VALUES (?, ?)", (id, access_time))
+        query = f"INSERT INTO Entry_logs (person_id, entry_time) VALUES ('{id}', '{access_time}')"
+        cursor.execute(query)
     elif cam_id == "rear":
-        cursor.execute("INSERT INTO access_logs (person_id, exit_time) VALUES (?, ?)", (id, access_time))
+        query = f"INSERT INTO Entry_logs (person_id, exit_time) VALUES ('{id}', '{access_time}')"
+        cursor.execute(query)
     conn.commit()
     conn.close()
+    
 
 # 미등록자 일시 프레임 저장하고, -1에 파일이름, 출입시간 기록
 def save_unknown_image(image_data, camera):
@@ -93,16 +107,12 @@ def save_unknown_image(image_data, camera):
         
     cursor = conn.cursor()
     if camera == "front":
-        cursor.execute(
-        "INSERT INTO access_logs (person_id, fime_name, entry_time) VALUES (?, ?)",
-        (-1, file_name, access_time)
-    )
+        query = f"INSERT INTO Entry_logs (person_id, file_name, entry_time) VALUES (-1,'{file_name}', '{access_time}')"
+        cursor.execute(query)
     elif camera == "rear":
-        cursor.execute(
-        "INSERT INTO access_logs (person_id, fime_name, exit_time) VALUES (?, ?)",
-        (-1, file_name, access_time)
-    )
-    
+        query = f"INSERT INTO Entry_logs (person_id, file_name, exit_time) VALUES (-1,'{file_name}', '{access_time}')"
+        cursor.execute(query)
+
     conn.close()
     return file_name
 
