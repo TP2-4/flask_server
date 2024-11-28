@@ -35,10 +35,10 @@ def upload():
     
     # 현재는 임베딩 벡터 따로 생성하지 않고 바로 비교하는 형식으로 동작함
     dfs = DeepFace.find(
-        img_path="temp_image.jpg",
+        img_path=frame,
         db_path="./face_db/", # db 서버에 저장된 얼굴 폴더 경로
-        model_name="VGG-Face", # 사용할 모델 이름
-        distance_metric="cosine", # 유사도 알고리즘 종류
+        model_name="Facenet512", # 사용할 모델 이름
+        distance_metric="euclidean_l2", # 유사도 알고리즘 종류
         threshold=None,
     )
     
@@ -107,5 +107,5 @@ def save_unknown_image(image_data, camera):
     return file_name
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(host='0.0.0.0', port=9978, threaded=True, debug=False)
     
